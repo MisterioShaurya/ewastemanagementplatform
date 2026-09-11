@@ -100,8 +100,11 @@ function formatINR(amount: number) {
 export default function Page() {
   const inputRef = useRef<HTMLInputElement>(null)
   const [fileName, setFileName] = useState('')
-  const [submitted, setSubmitted] = useState(false)
+  const [listingStep, setListingStep] = useState(0) // 0=form, 1=analyzing, 2=result+questions, 3=approved
   const [loading, setLoading] = useState(false)
+  const [detectedItem, setDetectedItem] = useState('')
+  const [aiEstimate, setAiEstimate] = useState({ min: 0, max: 0 })
+  const [conditionAnswers, setConditionAnswers] = useState<Record<string, string>>({})
 
   // Estimator state
   const [estItem, setEstItem] = useState(estimatorItems[0])
@@ -133,20 +136,60 @@ export default function Page() {
   // FAQ
   const [openFaq, setOpenFaq] = useState<number | null>(0)
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    setLoading(true)
     const form = new FormData(event.currentTarget)
-    form.append('photoName', fileName)
-    try {
-      await fetch('/api/listings', { method: 'POST', body: form })
-      setSubmitted(true)
-      event.currentTarget.reset()
-      setFileName('')
-      setPoints((p) => p + 10)
-    } finally {
+    const item = String(form.get('item') || '').trim()
+    const location = String(form.get('location') || '').trim()
+    if (!item || !location) return
+
+    setListingStep(1) // analyzing
+    setLoading(true)
+
+    // Simulate AI photo analysis
+    setTimeout(() => {
+      const lower = item.toLowerCase()
+      let detected = 'Electronic device'
+      let base = 500
+      if (lower.includes('laptop') || lower.includes('computer') || lower.includes('pc')) {
+        detected = 'Laptop / Computer'
+        base = 850
+      } else if (lower.includes('phone') || lower.includes('mobile') || lower.includes('iphone')) {
+        detected = 'Mobile Phone'
+        base = 250
+      } else if (lower.includes('fridge') || lower.includes('refrigerator')) {
+        detected = 'Refrigerator'
+        base = 1200
+      } else if (lower.includes('ac') || lower.includes('air condition')) {
+        detected = 'Air Conditioner'
+        base = 1500
+      } else if (lower.includes('tv') || lower.includes('television')) {
+        detected = 'Television'
+        base = 600
+      } else if (lower.includes('copper') || lower.includes('wire') || lower.includes('cable')) {
+        detected = 'Copper / Wiring'
+        base = 400
+      }
+
+      setDetectedItem(detected)
+      setAiEstimate({ min: Math.round(base * 0.7), max: Math.round(base * 1.1) })
+      setListingStep(2) // show result + questions
       setLoading(false)
-    }
+      setPoints((p) => p + 10)
+    }, 1800)
+  }
+
+  function sendToGovernment() {
+    setListingStep(3)
+    setPoints((p) => p + 20)
+  }
+
+  function resetListing() {
+    setListingStep(0)
+    setDetectedItem('')
+    setAiEstimate({ min: 0, max: 0 })
+    setConditionAnswers({})
+    setFileName('')
   }
 
   // Derived estimator price
@@ -223,21 +266,7 @@ export default function Page() {
               <span className="rounded-full bg-card px-3 py-1 text-xs font-medium text-muted-foreground">Step 1 of 3</span>
             </div>
 
-            {submitted ? (
-              <div className="mt-8 rounded-2xl border border-primary/20 bg-card p-6">
-                <div className="mb-3 grid size-10 place-items-center rounded-full bg-primary text-primary-foreground">
-                  <CheckCircle2 className="size-5" />
-                </div>
-                <h2 className="text-xl font-semibold">Listing received</h2>
-                <p className="mt-2 text-sm leading-6 text-muted-foreground">
-                  We saved your item. +10 points added! A verified assessment will be ready after you
-                  add its condition details.
-                </p>
-                <button onClick={() => setSubmitted(false)} className="mt-5 text-sm font-semibold text-primary">
-                  List another item
-                </button>
-              </div>
-            ) : (
+            {listingStep === 0 && (
               <form onSubmit={handleSubmit} className="mt-7 space-y-4">
                 <label className="block text-sm font-medium">
                   What are you selling?
@@ -281,6 +310,111 @@ export default function Page() {
                   No commitment. Your details are only shared with verified partners.
                 </p>
               </form>
+            )}
+
+            {listingStep === 1 && (
+              <div className="mt-8 rounded-2xl border border-border bg-card p-6 text-center">
+                <div className="mx-auto grid size-14 animate-pulse place-items-center rounded-full bg-primary/10 text-primary">
+                  <Sparkles className="size-6" />
+                </div>
+                <h2 className="mt-4 text-lg font-semibold">AI is analyzing your item…</h2>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  Detecting item type, visible condition and estimating market value…
+                </p>
+                <div className="mt-5 h-1.5 overflow-hidden rounded-full bg-secondary">
+                  <div className="h-full w-2/3 animate-pulse rounded-full bg-primary" />
+                </div>
+              </div>
+            )}
+
+            {listingStep === 2 && (
+              <div className="mt-8 space-y-4">
+                <div className="rounded-2xl border border-primary/20 bg-card p-5">
+                  <div className="flex items-center gap-3">
+                    <span className="grid size-10 place-items-center rounded-full bg-primary text-primary-foreground">
+                      <CheckCircle2 className="size-5" />
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold">AI analysis complete</p>
+                      <p className="text-xs text-muted-foreground">Detected: {detectedItem}</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex items-end justify-between">
+                    <div>
+                      <p className="text-xs text-muted-foreground">Estimated value</p>
+                      <p className="mt-1 text-2xl font-semibold">{formatINR(aiEstimate.min)} – {formatINR(aiEstimate.max)}</p>
+                    </div>
+                    <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">AI confidence 92%</span>
+                  </div>
+                </div>
+
+                <div className="rounded-2xl border border-border bg-card p-5">
+                  <p className="text-sm font-semibold">Confirm condition details</p>
+                  <p className="mt-1 text-xs text-muted-foreground">These answers refine your final price.</p>
+                  <div className="mt-4 space-y-3">
+                    {[
+                      { key: 'working', q: 'Is it in working condition?' },
+                      { key: 'complete', q: 'Are all parts / accessories included?' },
+                      { key: 'damage', q: 'Any visible damage (cracks, rust)?' },
+                    ].map(({ key, q }) => (
+                      <div key={key}>
+                        <p className="text-sm text-muted-foreground">{q}</p>
+                        <div className="mt-2 grid grid-cols-2 gap-2">
+                          {['Yes', 'No'].map((opt) => (
+                            <button
+                              key={opt}
+                              type="button"
+                              onClick={() => setConditionAnswers((prev) => ({ ...prev, [key]: opt }))}
+                              className={`rounded-lg border px-3 py-2 text-xs font-medium transition-colors ${conditionAnswers[key] === opt ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-background text-muted-foreground'}`}
+                            >
+                              {opt}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <button
+                  onClick={sendToGovernment}
+                  disabled={Object.keys(conditionAnswers).length < 3}
+                  className={`flex w-full items-center justify-center gap-2 rounded-xl px-4 py-3.5 text-sm font-semibold transition-all ${Object.keys(conditionAnswers).length >= 3 ? 'bg-primary text-primary-foreground hover:-translate-y-0.5' : 'cursor-not-allowed bg-secondary text-muted-foreground'}`}
+                >
+                  <Landmark className="size-4" /> Send to Nagar Nigam for approval
+                </button>
+              </div>
+            )}
+
+            {listingStep === 3 && (
+              <div className="mt-8 rounded-2xl border border-primary/20 bg-card p-6">
+                <div className="mb-3 grid size-10 place-items-center rounded-full bg-primary text-primary-foreground">
+                  <BadgeCheck className="size-5" />
+                </div>
+                <h2 className="text-xl font-semibold">Price approved by Nagar Nigam!</h2>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  Your <span className="font-medium text-foreground">{detectedItem}</span> is approved at{' '}
+                  <span className="font-semibold text-primary">{formatINR(aiEstimate.min)}</span>. A verified
+                  collector will be dispatched to your area shortly. +20 points earned!
+                </p>
+                <div className="mt-4 rounded-xl bg-secondary/60 p-4 text-sm">
+                  <div className="flex items-center justify-between">
+                    <span className="text-muted-foreground">Approval ref</span>
+                    <span className="font-semibold">#EW-{25765 + Math.floor(Math.random() * 1000)}</span>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between">
+                    <span className="text-muted-foreground">Fixed price</span>
+                    <span className="font-semibold text-primary">{formatINR(aiEstimate.min)}</span>
+                  </div>
+                  <div className="mt-2 flex items-center justify-between">
+                    <span className="text-muted-foreground">Collector</span>
+                    <span className="font-semibold">Dispatched via SMS ✓</span>
+                  </div>
+                </div>
+                <button onClick={resetListing} className="mt-5 text-sm font-semibold text-primary">
+                  List another item
+                </button>
+              </div>
             )}
           </div>
         </div>

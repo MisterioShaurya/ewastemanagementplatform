@@ -958,14 +958,52 @@ export default function Page() {
 
       {/* ---------- Footer ---------- */}
       <footer className="border-t border-border">
-        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-5 py-7 text-sm text-muted-foreground sm:flex-row sm:items-center sm:justify-between lg:px-8">
-          <span className="flex items-center gap-2 font-medium text-foreground">
-            <Recycle className="size-4 text-primary" /> ScrapeConnect
+  <div className="mx-auto flex max-w-7xl flex-col gap-5 px-5 py-7 text-sm text-muted-foreground lg:px-8">
+    
+    {/* Main Footer Content */}
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+      <span className="flex items-center gap-2 font-medium text-foreground">
+        <Recycle className="size-4 text-primary" />
+        ScrapeConnect
+      </span>
+
+      <span className="text-center sm:text-left">
+        Making responsible recycling feel simple — with the government by your side.
+      </span>
+
+      <span className="text-center sm:text-right">
+        © 2026 ScrapeConnect Network
+      </span>
+    </div>
+
+    {/* Team Credits */}
+    <div className="border-t border-border/60 pt-4 text-center">
+      <div className="flex flex-col items-center gap-1.5 sm:flex-row sm:flex-wrap sm:justify-center sm:gap-x-6 sm:gap-y-1">
+        
+        <span>
+          Made by <span className="font-semibold text-foreground">Team NEXUS</span>
+        </span>
+
+        <span className="hidden sm:inline text-border">•</span>
+
+        <span>
+          SIH26229
+        </span>
+
+        <span className="hidden sm:inline text-border">•</span>
+
+        <span>
+          Designed & Developed by {" "}
+          <span className="font-semibold text-primary">
+            Shaurya
           </span>
-          <span>Making responsible recycling feel simple — with the government by your side.</span>
-          <span>© 2026 ScrapeConnect Network</span>
-        </div>
-      </footer>
+        </span>
+
+      </div>
+    </div>
+
+  </div>
+</footer>
     </main>
   )
 }
